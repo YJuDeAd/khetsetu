@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.models.base import Base
-from app.models.enums import OrderStatus
+from app.models.enums import EscrowStatus, OrderStatus
 
 
 class Order(Base):
@@ -95,3 +95,9 @@ class Order(Base):
     payment = relationship(
         "Payment", back_populates="order", uselist=False, cascade="all, delete-orphan"
     )
+
+    @property
+    def escrow_status(self) -> EscrowStatus | None:
+        if self.payment:
+            return self.payment.escrow_status
+        return None

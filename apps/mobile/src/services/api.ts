@@ -4,9 +4,10 @@ import {
   ProduceCreatePayload,
   ProduceListing,
 } from "../types/produce";
+import { OrderCreatePayload, OrderResponse } from "../types/order";
 
 // Android emulator routes localhost to 10.0.2.2; iOS and physical devices on LAN use host IP/localhost
-const DEFAULT_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+const DEFAULT_HOST = Platform.OS === "android" ? "192.168.29.198" : "localhost";
 export const API_BASE_URL = `http://${DEFAULT_HOST}:8000/api/v1`;
 
 export async function fetchListings(
@@ -71,3 +72,25 @@ export async function createProduceListing(
 
   return response.json();
 }
+
+export async function createOrder(
+  payload: OrderCreatePayload,
+): Promise<OrderResponse> {
+  const response = await fetch(`${API_BASE_URL}/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    const message = errorBody.detail || `Server error (${response.status})`;
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+

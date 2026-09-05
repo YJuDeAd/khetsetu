@@ -24,12 +24,15 @@ export const FarmerListingScreen: React.FC<FarmerListingScreenProps> = ({
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.banner}>
-          <Text style={styles.bannerTitle}>🌾 Direct Farmer Marketplace</Text>
-          <Text style={styles.bannerSubtitle}>
-            Sell your produce directly to consumers, restaurants, and bulk buyers with zero middlemen markups.
+        {/* Header Hero Banner */}
+        <View style={styles.heroBanner}>
+          <Text style={styles.heroTitle}>List Produce & Sell Direct</Text>
+          <Text style={styles.heroSubtitle}>
+            Connect directly with verified wholesale buyers, FPOs, and retailers. 100% transparent pricing with escrow protection.
           </Text>
+
         </View>
 
         <FarmerListingForm onSuccess={onListingCreated} />
@@ -46,24 +49,63 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingVertical: 12,
   },
-  banner: {
-    backgroundColor: "#DCFCE7",
+  heroBanner: {
+    backgroundColor: "#166534",
     marginHorizontal: 16,
-    marginBottom: 4,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
+    marginBottom: 16,
+    padding: 18,
+    borderRadius: 16,
+    shadowColor: "#166534",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  bannerTitle: {
-    fontSize: 16,
+  heroBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(220, 252, 231, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  heroBadgeText: {
+    color: "#DCFCE7",
+    fontSize: 10,
     fontWeight: "700",
-    color: "#166534",
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
-  bannerSubtitle: {
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 6,
+  },
+  heroSubtitle: {
     fontSize: 13,
-    color: "#334155",
+    color: "#BBF7D0",
     lineHeight: 18,
+    marginBottom: 14,
+  },
+  perksRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  perkItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  perkIcon: {
+    fontSize: 12,
+  },
+  perkText: {
+    fontSize: 11,
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });

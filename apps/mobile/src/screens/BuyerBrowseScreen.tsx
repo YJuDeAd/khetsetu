@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { ListingCard } from "../components/ListingCard";
+import { ProduceDetailModal } from "../components/ProduceDetailModal";
 import { SearchBar } from "../components/SearchBar";
 import { fetchListings } from "../services/api";
 import { ProduceListing } from "../types/produce";
@@ -19,6 +20,7 @@ export const BuyerBrowseScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedListing, setSelectedListing] = useState<ProduceListing | null>(null);
 
   const loadListings = useCallback(
     async (isRefresh = false) => {
@@ -56,7 +58,9 @@ export const BuyerBrowseScreen: React.FC = () => {
   }, [loadListings]);
 
   const renderItem = useCallback(
-    ({ item }: { item: ProduceListing }) => <ListingCard listing={item} />,
+    ({ item }: { item: ProduceListing }) => (
+      <ListingCard listing={item} onPress={setSelectedListing} />
+    ),
     [],
   );
 
@@ -111,6 +115,15 @@ export const BuyerBrowseScreen: React.FC = () => {
           }
         />
       )}
+
+      <ProduceDetailModal
+        listing={selectedListing}
+        visible={!!selectedListing}
+        onClose={() => setSelectedListing(null)}
+        onOrderSuccess={() => {
+          loadListings(true);
+        }}
+      />
     </View>
   );
 };

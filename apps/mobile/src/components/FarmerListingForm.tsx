@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -15,9 +16,17 @@ interface FarmerListingFormProps {
   onSuccess?: () => void;
 }
 
-const CATEGORIES = ["Cereals", "Vegetables", "Fruits", "Pulses", "Oilseeds"];
+const CATEGORIES = [
+  { label: "Cereals", hindi: "अनाज", icon: "🌾" },
+  { label: "Vegetables", hindi: "सब्जियां", icon: "🥦" },
+  { label: "Fruits", hindi: "फल", icon: "🍎" },
+  { label: "Pulses", hindi: "दालें", icon: "🫘" },
+  { label: "Oilseeds", hindi: "तिलहन", icon: "🌻" },
+];
+
 const UNITS = ["kg", "quintal", "ton", "box"];
-// Default mock farmer seller ID for demo / prototype
+const SHELF_LIFE_PRESETS = [7, 14, 30, 90, 180];
+
 const DEFAULT_SELLER_ID = "00000000-0000-0000-0000-000000000001";
 
 export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
@@ -29,12 +38,13 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
   const [unit, setUnit] = useState("kg");
   const [pricePerUnit, setPricePerUnit] = useState("");
   const [shelfLifeDays, setShelfLifeDays] = useState("30");
-  const [pincode, setPincode] = useState("141001");
-  const [district, setDistrict] = useState("Ludhiana");
-  const [state, setState] = useState("Punjab");
   const [variety, setVariety] = useState("");
   const [isOrganic, setIsOrganic] = useState(false);
+  const [district, setDistrict] = useState("Amritsar");
+  const [state, setState] = useState("Punjab");
+  const [pincode, setPincode] = useState("143001");
   const [sellerId, setSellerId] = useState(DEFAULT_SELLER_ID);
+  const [showAdvancedSellerId, setShowAdvancedSellerId] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
@@ -42,29 +52,31 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
     text: string;
   } | null>(null);
 
+  const parsedQty = parseFloat(quantity) || 0;
+  const parsedPrice = parseFloat(pricePerUnit) || 0;
+  const estimatedRevenue = (parsedQty * parsedPrice).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+
   const handleSubmit = async () => {
     setStatusMessage(null);
 
-    const parsedQty = parseFloat(quantity);
-    const parsedPrice = parseFloat(pricePerUnit);
     const parsedShelfLife = parseInt(shelfLifeDays, 10);
 
     if (!cropName.trim()) {
-      Alert.alert("Validation Error", "Please enter a crop name.");
+      Alert.alert("Missing Crop Name", "Please enter the crop name.");
       return;
     }
-    if (isNaN(parsedQty) || parsedQty <= 0) {
-      Alert.alert(
-        "Validation Error",
-        "Please enter a valid quantity greater than 0.",
-      );
+    if (parsedQty <= 0) {
+      Alert.alert("Invalid Quantity", "Please enter a valid quantity greater than 0.");
       return;
     }
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert(
-        "Validation Error",
-        "Please enter a valid price per unit greater than 0.",
-      );
+    if (parsedPrice <= 0) {
+      Alert.alert("Invalid Price", "Please enter a valid price per unit.");
+      return;
+    }
+    if (!district.trim() || !state.trim()) {
+      Alert.alert("Missing Location", "Please enter farm district and state.");
       return;
     }
 
@@ -76,8 +88,8 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
       unit,
       price_per_unit: parsedPrice,
       harvest_date: new Date().toISOString().split("T")[0],
-      shelf_life_days: isNaN(parsedShelfLife) ? 7 : parsedShelfLife,
-      location_pincode: pincode.trim(),
+      shelf_life_days: isNaN(parsedShelfLife) || parsedShelfLife <= 0 ? 14 : parsedShelfLife,
+      location_pincode: pincode.trim() || "143001",
       location_district: district.trim(),
       location_state: state.trim(),
       attributes: {
@@ -91,7 +103,7 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
       await createProduceListing(payload);
       setStatusMessage({
         type: "success",
-        text: `Successfully listed ${cropName}! Your produce is now live in the marketplace.`,
+        text: `Successfully published ${cropName}! Your produce is now live in the buyer marketplace.`,
       });
       // Reset form
       setCropName("");
@@ -100,13 +112,13 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
       setVariety("");
       if (onSuccess) onSuccess();
     } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to publish produce listing.";
       setStatusMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Failed to publish produce listing.",
+        text: msg,
       });
+      Alert.alert("Publish Failed", msg);
     } finally {
       setSubmitting(false);
     }
@@ -114,17 +126,32 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionHeader}>List Your Harvest / अपनी फसल जोड़ें</Text>
+      {/* Farmer Identity Badge */}
+      <View style={styles.farmerProfileBadge}>
+        <View style={styles.farmerAvatar}>
+          <Text style={styles.avatarEmoji}>👨‍🌾</Text>
+        </View>
+        <View style={styles.farmerProfileInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.farmerName}>Ramesh Kumar</Text>
+            <View style={styles.verifiedTag}>
+              <Text style={styles.verifiedText}>✓ Verified Farmer</Text>
+            </View>
+          </View>
+          <Text style={styles.farmerLocation}>📍 {district}, {state}</Text>
+        </View>
+      </View>
 
       {statusMessage ? (
         <View
           style={[
             styles.banner,
-            statusMessage.type === "success"
-              ? styles.successBanner
-              : styles.errorBanner,
+            statusMessage.type === "success" ? styles.successBanner : styles.errorBanner,
           ]}
         >
+          <Text style={styles.bannerIcon}>
+            {statusMessage.type === "success" ? "✅" : "⚠️"}
+          </Text>
           <Text
             style={[
               styles.bannerText,
@@ -138,73 +165,83 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
         </View>
       ) : null}
 
-      <Text style={styles.label}>Crop Name / फसल का नाम *</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. Sharbati Wheat, Alphonso Mango"
-        placeholderTextColor="#94A3B8"
-        value={cropName}
-        onChangeText={setCropName}
-      />
+      {/* SECTION 1: CROP DETAILS */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>1. Crop Information / फसल का विवरण</Text>
 
-      <Text style={styles.label}>Crop Category / श्रेणी</Text>
-      <View style={styles.optionsRow}>
-        {CATEGORIES.map((cat) => (
-          <Pressable
-            key={cat}
-            accessibilityRole="button"
-            accessibilityLabel={`Select category ${cat}`}
-            style={({ pressed }) => [
-              styles.optionChip,
-              category === cat && styles.activeOptionChip,
-              pressed && styles.pressedChip,
-            ]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text
-              style={[
-                styles.optionChipText,
-                category === cat && styles.activeOptionChipText,
-              ]}
-            >
-              {cat}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+        <Text style={styles.fieldLabel}>Crop Name / फसल का नाम *</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="e.g. Sharbati Whole Wheat, Alphonso Mango"
+          placeholderTextColor="#94A3B8"
+          value={cropName}
+          onChangeText={setCropName}
+        />
 
-      <View style={styles.row}>
-        <View style={styles.halfColumn}>
-          <Text style={styles.label}>Quantity / मात्रा *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="1000"
-            placeholderTextColor="#94A3B8"
-            keyboardType="numeric"
-            value={quantity}
-            onChangeText={setQuantity}
-          />
+        <Text style={styles.fieldLabel}>Category / श्रेणी</Text>
+        <View style={styles.categoryGrid}>
+          {CATEGORIES.map((cat) => {
+            const isSelected = category === cat.label;
+            return (
+              <Pressable
+                key={cat.label}
+                style={[
+                  styles.categoryChip,
+                  isSelected && styles.categoryChipActive,
+                ]}
+                onPress={() => setCategory(cat.label)}
+              >
+                <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                <View>
+                  <Text
+                    style={[
+                      styles.categoryLabel,
+                      isSelected && styles.categoryLabelActive,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.categorySubLabel,
+                      isSelected && styles.categorySubLabelActive,
+                    ]}
+                  >
+                    {cat.hindi}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
 
-        <View style={styles.halfColumn}>
-          <Text style={styles.label}>Unit / इकाई</Text>
-          <View style={styles.unitRow}>
+        <Text style={styles.fieldLabel}>Variety or Strain / किस्म (Optional)</Text>
+        <TextInput
+          style={styles.textInput}
+          placeholder="e.g. 1121 Extra Long, Golden Desi, Hybrid-4"
+          placeholderTextColor="#94A3B8"
+          value={variety}
+          onChangeText={setVariety}
+        />
+      </View>
+
+      {/* SECTION 2: QUANTITY & PRICING */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>2. Quantity & Direct Price / मात्रा एवं दर</Text>
+
+        <View style={styles.unitSelectorContainer}>
+          <Text style={styles.fieldLabel}>Selling Unit / इकाई</Text>
+          <View style={styles.unitPillsRow}>
             {UNITS.map((u) => (
               <Pressable
                 key={u}
-                accessibilityRole="button"
-                accessibilityLabel={`Unit ${u}`}
-                style={({ pressed }) => [
-                  styles.unitChip,
-                  unit === u && styles.activeUnitChip,
-                  pressed && styles.pressedChip,
-                ]}
+                style={[styles.unitPill, unit === u && styles.unitPillActive]}
                 onPress={() => setUnit(u)}
               >
                 <Text
                   style={[
-                    styles.unitChipText,
-                    unit === u && styles.activeUnitChipText,
+                    styles.unitPillText,
+                    unit === u && styles.unitPillTextActive,
                   ]}
                 >
                   {u}
@@ -213,26 +250,71 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
             ))}
           </View>
         </View>
-      </View>
 
-      <View style={styles.row}>
-        <View style={styles.halfColumn}>
-          <Text style={styles.label}>Price per {unit} (₹) *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="35.00"
-            placeholderTextColor="#94A3B8"
-            keyboardType="numeric"
-            value={pricePerUnit}
-            onChangeText={setPricePerUnit}
-          />
+        <View style={styles.twoColumnRow}>
+          <View style={styles.columnItem}>
+            <Text style={styles.fieldLabel}>Total Quantity ({unit}) *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. 500"
+              placeholderTextColor="#94A3B8"
+              keyboardType="numeric"
+              value={quantity}
+              onChangeText={setQuantity}
+            />
+          </View>
+          <View style={styles.columnItem}>
+            <Text style={styles.fieldLabel}>Price per {unit} (₹) *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. 45.00"
+              placeholderTextColor="#94A3B8"
+              keyboardType="numeric"
+              value={pricePerUnit}
+              onChangeText={setPricePerUnit}
+            />
+          </View>
         </View>
 
-        <View style={styles.halfColumn}>
-          <Text style={styles.label}>Shelf Life (Days)</Text>
+        {/* Dynamic Estimated Revenue Card */}
+        {parsedQty > 0 && parsedPrice > 0 ? (
+          <View style={styles.revenueCard}>
+            <View style={styles.revenueHeader}>
+              <Text style={styles.revenueLabel}>Total Estimated Value</Text>
+              <Text style={styles.zeroCutBadge}>0% Intermediary Fee</Text>
+            </View>
+            <Text style={styles.revenueAmount}>₹{estimatedRevenue}</Text>
+            <Text style={styles.revenueSubtext}>
+              100% of payment goes directly to your bank account via escrow upon delivery.
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Shelf Life Selection */}
+        <Text style={styles.fieldLabel}>Freshness / Shelf Life (Days)</Text>
+        <View style={styles.presetPillsRow}>
+          {SHELF_LIFE_PRESETS.map((days) => (
+            <Pressable
+              key={days}
+              style={[
+                styles.presetPill,
+                shelfLifeDays === String(days) && styles.presetPillActive,
+              ]}
+              onPress={() => setShelfLifeDays(String(days))}
+            >
+              <Text
+                style={[
+                  styles.presetPillText,
+                  shelfLifeDays === String(days) && styles.presetPillTextActive,
+                ]}
+              >
+                {days}d
+              </Text>
+            </Pressable>
+          ))}
           <TextInput
-            style={styles.input}
-            placeholder="30"
+            style={[styles.textInput, styles.customDaysInput]}
+            placeholder="Custom"
             placeholderTextColor="#94A3B8"
             keyboardType="numeric"
             value={shelfLifeDays}
@@ -241,47 +323,53 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
         </View>
       </View>
 
-      <Text style={styles.label}>Variety / किस्म (Optional)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. Sharbati, Desi, Hybrid"
-        placeholderTextColor="#94A3B8"
-        value={variety}
-        onChangeText={setVariety}
-      />
+      {/* SECTION 3: LOCATION & CERTIFICATION */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>3. Location & Standards / स्थान एवं गुणवत्ता</Text>
 
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: isOrganic }}
-        style={({ pressed }) => [
-          styles.organicCheckbox,
-          pressed && styles.pressedChip,
-        ]}
-        onPress={() => setIsOrganic(!isOrganic)}
-      >
-        <Text style={styles.checkboxIcon}>{isOrganic ? "☑️" : "⬜"}</Text>
-        <Text style={styles.checkboxLabel}>Organic Certified / जैविक प्रमाणित</Text>
-      </Pressable>
+        {/* Organic Certification Toggle */}
+        <Pressable
+          style={[styles.organicToggle, isOrganic && styles.organicToggleActive]}
+          onPress={() => setIsOrganic(!isOrganic)}
+        >
+          <View style={styles.toggleCheckbox}>
+            <Text style={styles.toggleCheckIcon}>{isOrganic ? "✓" : ""}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.organicToggleTitle}>🌱 Organic Certified Produce</Text>
+            <Text style={styles.organicToggleSubtitle}>
+              Check if your crop follows certified organic or chemical-free practices.
+            </Text>
+          </View>
+        </Pressable>
 
-      <Text style={styles.label}>Farm Location (District, State, Pincode)</Text>
-      <View style={styles.locationRow}>
+        <View style={styles.twoColumnRow}>
+          <View style={styles.columnItem}>
+            <Text style={styles.fieldLabel}>District / ज़िला *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Amritsar"
+              placeholderTextColor="#94A3B8"
+              value={district}
+              onChangeText={setDistrict}
+            />
+          </View>
+          <View style={styles.columnItem}>
+            <Text style={styles.fieldLabel}>State / राज्य *</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g. Punjab"
+              placeholderTextColor="#94A3B8"
+              value={state}
+              onChangeText={setState}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.fieldLabel}>Pincode / पिन कोड</Text>
         <TextInput
-          style={[styles.input, styles.locationInput]}
-          placeholder="District"
-          placeholderTextColor="#94A3B8"
-          value={district}
-          onChangeText={setDistrict}
-        />
-        <TextInput
-          style={[styles.input, styles.locationInput]}
-          placeholder="State"
-          placeholderTextColor="#94A3B8"
-          value={state}
-          onChangeText={setState}
-        />
-        <TextInput
-          style={[styles.input, styles.pincodeInput]}
-          placeholder="Pincode"
+          style={styles.textInput}
+          placeholder="e.g. 143001"
           placeholderTextColor="#94A3B8"
           keyboardType="numeric"
           value={pincode}
@@ -289,33 +377,53 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
         />
       </View>
 
-      <Text style={styles.label}>Seller ID (Farmer UUID)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Seller UUID"
-        placeholderTextColor="#94A3B8"
-        value={sellerId}
-        onChangeText={setSellerId}
-        autoCapitalize="none"
-      />
+      {/* Advanced / Developer Settings Accordion */}
+      <Pressable
+        style={styles.advancedToggle}
+        onPress={() => setShowAdvancedSellerId(!showAdvancedSellerId)}
+      >
+        <Text style={styles.advancedToggleText}>
+          {showAdvancedSellerId ? "▼ Hide Advanced Config" : "▶ Advanced Seller Config"}
+        </Text>
+      </Pressable>
 
+      {showAdvancedSellerId ? (
+        <View style={styles.advancedBox}>
+          <Text style={styles.fieldLabel}>Seller ID (UUID)</Text>
+          <TextInput
+            style={[styles.textInput, styles.monospaceInput]}
+            placeholder="Seller UUID"
+            placeholderTextColor="#94A3B8"
+            value={sellerId}
+            onChangeText={setSellerId}
+            autoCapitalize="none"
+          />
+        </View>
+      ) : null}
+
+      {/* PUBLISH SUBMIT BUTTON */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Submit Produce Listing"
+        accessibilityLabel="Publish Produce Listing"
         disabled={submitting}
         style={({ pressed }) => [
-          styles.submitButton,
-          submitting && styles.submitButtonDisabled,
-          pressed && styles.submitButtonPressed,
+          styles.publishButton,
+          submitting && styles.publishButtonDisabled,
+          pressed && styles.publishButtonPressed,
         ]}
         onPress={handleSubmit}
       >
         {submitting ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color="#FFFFFF" size="small" />
         ) : (
-          <Text style={styles.submitButtonText}>
-            🚀 Publish Produce Listing / फसल प्रकाशित करें
-          </Text>
+          <View style={styles.buttonContent}>
+            <Text style={styles.publishButtonText}>
+              Publish Produce Listing
+            </Text>
+            <Text style={styles.publishButtonSubtext}>
+              फसल मंडी में प्रकाशित करें →
+            </Text>
+          </View>
         )}
       </Pressable>
     </View>
@@ -324,24 +432,359 @@ export const FarmerListingForm: React.FC<FarmerListingFormProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 16,
+    paddingBottom: 32,
+  },
+  farmerProfileBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    marginHorizontal: 16,
-    marginVertical: 12,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  farmerAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#DCFCE7",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  avatarEmoji: {
+    fontSize: 22,
+  },
+  farmerProfileInfo: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  farmerName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  verifiedTag: {
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  verifiedText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  farmerLocation: {
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#166534",
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    paddingBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155",
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  textInput: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#0F172A",
+    marginBottom: 12,
+  },
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: "45%",
+    flexGrow: 1,
+    gap: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#16A34A",
+  },
+  categoryIcon: {
+    fontSize: 18,
+  },
+  categoryLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  categoryLabelActive: {
+    color: "#166534",
+    fontWeight: "700",
+  },
+  categorySubLabel: {
+    fontSize: 10,
+    color: "#94A3B8",
+  },
+  categorySubLabelActive: {
+    color: "#15803D",
+  },
+  unitSelectorContainer: {
+    marginBottom: 12,
+  },
+  unitPillsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  unitPill: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  unitPillActive: {
+    backgroundColor: "#166534",
+    borderColor: "#166534",
+  },
+  unitPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  unitPillTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  twoColumnRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  columnItem: {
+    flex: 1,
+  },
+  revenueCard: {
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  revenueHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  revenueLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#166534",
+    textTransform: "uppercase",
+  },
+  zeroCutBadge: {
+    backgroundColor: "#DCFCE7",
+    color: "#15803D",
+    fontSize: 10,
+    fontWeight: "700",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  revenueAmount: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#15803D",
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  revenueSubtext: {
+    fontSize: 11,
+    color: "#475569",
+    lineHeight: 16,
+  },
+  presetPillsRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  presetPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
-  sectionHeader: {
-    fontSize: 18,
+  presetPillActive: {
+    backgroundColor: "#166534",
+    borderColor: "#166534",
+  },
+  presetPillText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  presetPillTextActive: {
+    color: "#FFFFFF",
+  },
+  customDaysInput: {
+    flex: 1,
+    marginBottom: 0,
+    paddingVertical: 7,
+    textAlign: "center",
+  },
+  organicToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    gap: 12,
+  },
+  organicToggleActive: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#16A34A",
+  },
+  toggleCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#16A34A",
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toggleCheckIcon: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#16A34A",
+  },
+  organicToggleTitle: {
+    fontSize: 14,
     fontWeight: "700",
-    color: "#166534",
-    marginBottom: 16,
+    color: "#1E293B",
+  },
+  organicToggleSubtitle: {
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  advancedToggle: {
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  advancedToggleText: {
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  advancedBox: {
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  monospaceInput: {
+    fontSize: 11,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  publishButton: {
+    backgroundColor: "#16A34A",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 6,
+    shadowColor: "#16A34A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  publishButtonPressed: {
+    backgroundColor: "#15803D",
+  },
+  publishButtonDisabled: {
+    backgroundColor: "#86EFAC",
+  },
+  buttonContent: {
+    alignItems: "center",
+  },
+  publishButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  publishButtonSubtext: {
+    color: "#DCFCE7",
+    fontSize: 12,
+    marginTop: 2,
   },
   banner: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
     borderRadius: 10,
     marginBottom: 16,
+    gap: 8,
+  },
+  bannerIcon: {
+    fontSize: 18,
   },
   successBanner: {
     backgroundColor: "#DCFCE7",
@@ -356,6 +799,7 @@ const styles = StyleSheet.create({
   bannerText: {
     fontSize: 13,
     lineHeight: 18,
+    flex: 1,
   },
   successBannerText: {
     color: "#166534",
@@ -364,130 +808,5 @@ const styles = StyleSheet.create({
   errorBannerText: {
     color: "#991B1B",
     fontWeight: "600",
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#334155",
-    marginBottom: 6,
-    marginTop: 4,
-  },
-  input: {
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: "#0F172A",
-    marginBottom: 12,
-  },
-  optionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  optionChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  activeOptionChip: {
-    backgroundColor: "#DCFCE7",
-    borderColor: "#16A34A",
-  },
-  optionChipText: {
-    fontSize: 12,
-    color: "#475569",
-    fontWeight: "500",
-  },
-  activeOptionChipText: {
-    color: "#166534",
-    fontWeight: "700",
-  },
-  row: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  halfColumn: {
-    flex: 1,
-  },
-  unitRow: {
-    flexDirection: "row",
-    gap: 4,
-  },
-  unitChip: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  activeUnitChip: {
-    backgroundColor: "#16A34A",
-    borderColor: "#16A34A",
-  },
-  unitChipText: {
-    fontSize: 12,
-    color: "#475569",
-    fontWeight: "600",
-  },
-  activeUnitChipText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  organicCheckbox: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-    marginTop: 4,
-  },
-  checkboxIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  checkboxLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#15803D",
-  },
-  locationRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 4,
-  },
-  locationInput: {
-    flex: 2,
-  },
-  pincodeInput: {
-    flex: 1.5,
-  },
-  pressedChip: {
-    opacity: 0.8,
-  },
-  submitButton: {
-    backgroundColor: "#16A34A",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  submitButtonPressed: {
-    backgroundColor: "#15803D",
-  },
-  submitButtonDisabled: {
-    backgroundColor: "#86EFAC",
-  },
-  submitButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
   },
 });
