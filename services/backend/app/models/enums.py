@@ -1,0 +1,56 @@
+import enum
+
+
+class UserRole(enum.StrEnum):
+    FARMER = "FARMER"
+    FPO = "FPO"
+    BUYER = "BUYER"
+    ADMIN = "ADMIN"
+    LOGISTICS_PARTNER = "LOGISTICS_PARTNER"
+
+
+class ProduceStatus(enum.StrEnum):
+    ACTIVE = "ACTIVE"
+    RESERVED = "RESERVED"
+    SOLD_OUT = "SOLD_OUT"
+    DELISTED = "DELISTED"
+
+
+class OrderStatus(enum.StrEnum):
+    INITIATED = "INITIATED"
+    IN_ESCROW = "IN_ESCROW"
+    DISPATCHED = "DISPATCHED"
+    DELIVERED_VERIFIED = "DELIVERED_VERIFIED"
+    RELEASED = "RELEASED"
+    CANCELLED = "CANCELLED"
+    REFUNDED = "REFUNDED"
+    DISPUTED = "DISPUTED"
+
+
+class EscrowStatus(enum.StrEnum):
+    PENDING = "PENDING"
+    HELD = "HELD"
+    RELEASE_REQUESTED = "RELEASE_REQUESTED"
+    RELEASED = "RELEASED"
+    REFUNDED = "REFUNDED"
+    DISPUTED = "DISPUTED"
+
+
+class RouteStatus(enum.StrEnum):
+    PLANNED = "PLANNED"
+    ASSIGNED = "ASSIGNED"
+    IN_TRANSIT = "IN_TRANSIT"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class StopType(enum.StrEnum):
+    PICKUP = "PICKUP"
+    DROPOFF = "DROPOFF"
+
+
+class StopStatus(enum.StrEnum):
+    PENDING = "PENDING"
+    ARRIVED = "ARRIVED"
+    COMPLETED = "COMPLETED"
+    SKIPPED = "SKIPPED"

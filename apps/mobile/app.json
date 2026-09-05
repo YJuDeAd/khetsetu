@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "KhetSetu",
+    "slug": "khetsetu",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#14310f"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#14310f"
+      }
+    },
+    "plugins": []
+  }
+}
